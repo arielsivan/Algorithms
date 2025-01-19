@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      font-family: Arial, sans-serif;
+    }
+    
+    .graph {
+      border: 1px solid #ccc;
+      margin: 20px 0;
+      position: relative;
+      height: 400px;
+      background: #f5f5f5;
+    }
+    
+    .node {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      position: absolute;
+      background: #fff;
+      border: 2px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .node.start {
+      background: #4CAF50;
+      color: white;
+    }
+    
+    .node.end {
+      background: #f44336;
+      color: white;
+    }
+    
+    .node.visited {
+      background: #2196F3;
+      color: white;
+    }
+    
+    .node.path {
+      background: #FFC107;
+      color: black;
+    }
+    
+    .edge {
+      position: absolute;
+      height: 2px;
+      background: #666;
+      transform-origin: 0 0;
+    }
+    
+    .edge-weight {
+      position: absolute;
+      background: white;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    
+    .controls {
+      margin: 20px 0;
+    }
+    
+    button {
+      padding: 8px 16px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Dijkstra's Algorithm Visualization</h1>
+    <div class="controls">
+      <button onclick="resetGraph()">Reset</button>
+      <button onclick="findPath()">Find Shortest Path</button>
+    </div>
+    <div class="graph" id="graph"></div>
+  </div>
+
+  <script>
+    // Graph data structure
+    const nodes = [
+      { id: 0, x: 200, y: 200, label: 'A' },
+      { id: 1, x: 100, y: 100, label: 'B' },
+      { id: 2, x: 300, y: 100, label: 'C' },
+      { id: 3, x: 100, y: 300, label: 'D' },
+      { id: 4, x: 300, y: 300, label: 'E' },
+    ];
+
+    const edges = [
+      { from: 0, to: 1, weight: 1 },
+      { from: 0, to: 3, weight: 5 },
+      { from: 0, to: 4, weight: 9 },
+      { from: 1, to: 2, weight: 5 },
+      { from: 1, to: 3, weight: 2 },
+      { from: 3, to: 4, weight: 4 },
+    ];
+
+    let startNode = 0;
+    let endNode = 4;
+
+    // Initialize the graph
+    function initGraph() {
+      const graph = document.getElementById('graph');
+      graph.innerHTML = '';
+
+      // Add edges
+      edges.forEach(edge => {
+        const from = nodes[edge.from];
+        const to = nodes[edge.to];
+        
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+
+        const edgeEl = document.createElement('div');
+        edgeEl.className = 'edge';
+        edgeEl.style.width = `${length}px`;
+        edgeEl.style.left = `${from.x + 20}px`;
+        edgeEl.style.top = `${from.y + 20}px`;
+        edgeEl.style.transform = `rotate(${angle}rad)`;
+
+        const weightEl = document.createElement('div');
+        weightEl.className = 'edge-weight';
+        weightEl.textContent = edge.weight;
+        weightEl.style.left = `${from.x + dx/2}px`;
+        weightEl.style.top = `${from.y + dy/2}px`;
+
+        graph.appendChild(edgeEl);
+        graph.appendChild(weightEl);
+      });
+
+      // Add nodes
+      nodes.forEach(node => {
+        const nodeEl = document.createElement('div');
+        nodeEl.className = 'node';
+        nodeEl.textContent = node.label;
+        nodeEl.style.left = `${node.x}px`;
+        nodeEl.style.top = `${node.y}px`;
+        
+        if (node.id === startNode) nodeEl.classList.add('start');
+        if (node.id === endNode) nodeEl.classList.add('end');
+        
+        graph.appendChild(nodeEl);
+      });
+    }
+
+    // Implementation of Dijkstra's algorithm
+    function dijkstra(start, end) {
+      const distances = new Array(nodes.length).fill(Infinity);
+      const previous = new Array(nodes.length).fill(null);
+      const unvisited = new Set(nodes.map(n => n.id));
+      distances[start] = 0;
+
+      while (unvisited.size > 0) {
+        // Find the unvisited node with minimum distance
+        let current = null;
+        let minDistance = Infinity;
+        for (const nodeId of unvisited) {
+          if (distances[nodeId] < minDistance) {
+            minDistance = distances[nodeId];
+            current = nodeId;
+          }
+        }
+
+        if (current === null) break;
+        if (current === end) break;
+
+        unvisited.delete(current);
+
+        // Update distances to neighbors
+        edges.forEach(edge => {
+          if (edge.from === current && unvisited.has(edge.to)) {
+            const distance = distances[current] + edge.weight;
+            if (distance < distances[edge.to]) {
+              distances[edge.to] = distance;
+              previous[edge.to] = current;
+            }
+          }
+          if (edge.to === current && unvisited.has(edge.from)) {
+            const distance = distances[current] + edge.weight;
+            if (distance < distances[edge.from]) {
+              distances[edge.from] = distance;
+              previous[edge.from] = current;
+            }
+          }
+        });
+      }
+
+      // Reconstruct path
+      const path = [];
+      let current = end;
+      while (current !== null) {
+        path.unshift(current);
+        current = previous[current];
+      }
+
+      return {
+        path,
+        distance: distances[end]
+      };
+    }
+
+    // Animate the path finding
+    async function findPath() {
+      const nodeElements = document.querySelectorAll('.node');
+      nodeElements.forEach(el => {
+        el.classList.remove('visited', 'path');
+      });
+
+      const result = dijkstra(startNode, endNode);
+      
+      // Animate visited nodes
+      for (let i = 0; i < result.path.length; i++) {
+        const nodeId = result.path[i];
+        const nodeEl = nodeElements[nodeId];
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        nodeEl.classList.add('visited');
+        
+        if (i > 0) {
+          nodeEl.classList.add('path');
+        }
+      }
+    }
+
+    function resetGraph() {
+      initGraph();
+    }
+
+    // Initialize the visualization
+    initGraph();
+  </script>
+</body>
+</html>
